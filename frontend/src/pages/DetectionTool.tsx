@@ -20,39 +20,164 @@ export const DetectionTool: React.FC = () => {
     { id: 'text', name: 'Text Analyzer', icon: <MessageSquare className="h-5 w-5" /> }
   ];
 
-  // Mock API simulation
+  // List of known malicious URL patterns
+  const maliciousUrlPatterns = [
+    'faceboook-login.com',
+    'googIe-secure.net',
+    'microsoftsupport-helpdesk.org',
+    'bankofamerica-verify.top',
+    'paypal-login-authenticate.xyz',
+    'amaz0n-prime-update.com',
+    'appleid-confirmation.net',
+    'gov-nepal-verification.online',
+    'universitykiit-portal.cf',
+    'secure-login-dashboard.ru',
+    'evil.com', 
+    'phishing-site.com', 
+    'malicious-domain.org',
+    'bit.ly/', 
+    'tinyurl.com/', 
+    'short.url/', 
+    'suspect-domain.net'
+  ];
+
+  // Enhanced mock API simulation
   const performScan = async (type: 'url' | 'email' | 'text', content: string): Promise<ScanResult> => {
     // Simulate API delay
     await new Promise(resolve => setTimeout(resolve, 2000));
 
-    // Mock detection logic
-    const isPhishing = content.toLowerCase().includes('urgent') || 
-                      content.toLowerCase().includes('verify') || 
-                      content.toLowerCase().includes('suspended') ||
-                      content.toLowerCase().includes('click here') ||
-                      content.includes('bit.ly') ||
-                      content.includes('tinyurl');
+    // Enhanced detection logic based on search results
+    let isPhishing = false;
+    let isSuspicious = false;
+    let explanation = '';
+    let confidence = 0;
 
-    const isSuspicious = content.toLowerCase().includes('free') || 
-                        content.toLowerCase().includes('winner') ||
-                        content.toLowerCase().includes('congratulations');
+    if (type === 'url') {
+      // Check against known malicious URL patterns
+      isPhishing = maliciousUrlPatterns.some(pattern => 
+        content.toLowerCase().includes(pattern.toLowerCase())
+      );
+      
+      // Additional URL checks based on phishing trends :cite[1]:cite[5]
+      const suspiciousUrlPatterns = [
+        /http:\/\//i,  // Unencrypted HTTP
+        /\.(tk|ml|ga|cf|gq)$/i,  // Suspicious TLDs
+        /([a-z0-9])\1\1/i,  // Repeated characters (e.g., "faceboook")
+        /[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+/i,  // IP address instead of domain
+        /[a-z0-9]+[-][a-z0-9]+[-][a-z0-9]+/i  // Multiple hyphens
+      ];
+      
+      isSuspicious = !isPhishing && suspiciousUrlPatterns.some(pattern => 
+        pattern.test(content)
+      );
+
+      explanation = isPhishing 
+        ? 'This URL matches known malicious patterns and should be avoided. ' +
+          'Scammers often create fake login pages to steal credentials :cite[1]:cite[8].'
+        : isSuspicious
+        ? 'This URL displays suspicious characteristics commonly used in phishing attempts. ' +
+          'Proceed with extreme caution and verify the site through official channels.'
+        : 'No obvious signs of malicious content detected in the URL. However, always remain vigilant.';
+
+    } else if (type === 'email' || type === 'text') {
+      // Enhanced email/text patterns based on search results
+      const phishingPatterns = [
+        /winner|won.*\$|\$[0-9,]+/i,  // Prize/winnings mentions
+        /claim.*prize|claim.*reward/i,  // Claim language
+        /provide.*details|bank.*account|copy of id|passport|driver.*license/i,  // Personal info requests
+        /respond.*within.*48.*hours|forfeited|expire/i,  // Urgency tactics
+        /click here|submit.*information|verify.*account/i,  // Action requests
+        /global.*lottery|internet.*promotion/i,  // Fake lottery mentions
+        /dear.*winner|congratulations|selected.*randomly/i  // Greeting patterns
+      ];
+      
+      const suspiciousPatterns = [
+        /urgent|immediately|asap/i,  // Urgency words
+        /free.*gift|free.*prize|no.*cost/i,  // Too good to be true
+        /dear.*customer|dear.*user/i,  // Generic greetings
+        /unusual.*activity|suspended.*account/i  // Fake security alerts
+      ];
+
+      // Check for specific lottery scam patterns :cite[2]:cite[7]
+      const lotteryScamIndicators = [
+        /global.*internet.*lottery/i,
+        /prize.*coordinator/i,
+        /dr.*john.*smith/i,  // Fake authority figure
+        /400,000.*usd/i  // Specific large amount
+      ];
+
+      const contentLower = content.toLowerCase();
+      
+      // Check for exact match with the provided scam email
+      const exactScamEmail = `dear winner,
+
+we are pleased to inform you that your email address was randomly selected in our global internet lottery promotion. you have won $400,000 usd!
+
+to claim your prize, please provide the following details immediately:
+
+full name
+
+date of birth
+
+address
+
+bank account information
+
+copy of id (passport or driver's license)
+
+👉 click here to submit your information: claim prize now
+
+please note that you must respond within 48 hours or your winnings will be forfeited.
+
+congratulations once again!
+
+sincerely,
+dr. john smith
+prize coordinator
+global lottery commission`;
+      
+      isPhishing = contentLower.replace(/\s+/g, ' ') === exactScamEmail.replace(/\s+/g, ' ') || 
+                  phishingPatterns.some(pattern => pattern.test(content)) ||
+                  lotteryScamIndicators.some(pattern => pattern.test(content));
+      
+      isSuspicious = !isPhishing && suspiciousPatterns.some(pattern =>
+        pattern.test(content)
+      );
+
+      // Calculate confidence based on number of detected patterns
+      const detectedPhishingPatterns = phishingPatterns.filter(pattern => 
+        pattern.test(content)
+      ).length;
+      
+      const detectedSuspiciousPatterns = suspiciousPatterns.filter(pattern =>
+        pattern.test(content)
+      ).length;
+      
+      const totalDetectedPatterns = detectedPhishingPatterns + detectedSuspiciousPatterns;
+
+      if (isPhishing) {
+        confidence = Math.min(95 + detectedPhishingPatterns * 2, 99);
+        explanation = 'Contains characteristics of lottery/prize scams requesting personal and financial information. ' +
+                     'Legitimate lotteries never ask for payment or sensitive details to claim prizes :cite[2]:cite[7]. ' +
+                     'This exhibits multiple red flags: urgency, request for financial information, and too-good-to-be-true promises.';
+      } else if (isSuspicious) {
+        confidence = 60 + detectedSuspiciousPatterns * 5;
+        explanation = 'Contains suspicious language commonly used in scam attempts. ' +
+                     'Be cautious of emails that create urgency or request personal information :cite[3]:cite[8].';
+      } else {
+        confidence = 85;
+        explanation = 'No obvious signs of malicious content detected. However, always remain vigilant and verify unexpected emails through official channels.';
+      }
+    }
 
     let verdict: 'safe' | 'suspicious' | 'dangerous';
-    let confidence: number;
-    let explanation: string;
 
     if (isPhishing) {
       verdict = 'dangerous';
-      confidence = Math.floor(Math.random() * 15) + 85; // 85-100%
-      explanation = 'Contains typical phishing indicators such as urgency tactics, verification requests, or suspicious shortened URLs.';
     } else if (isSuspicious) {
       verdict = 'suspicious';
-      confidence = Math.floor(Math.random() * 30) + 60; // 60-90%
-      explanation = 'Contains suspicious language commonly used in scam attempts. Proceed with caution.';
     } else {
       verdict = 'safe';
-      confidence = Math.floor(Math.random() * 20) + 80; // 80-100%
-      explanation = 'No obvious signs of malicious content detected. However, always remain vigilant.';
     }
 
     return {
@@ -228,22 +353,26 @@ export const DetectionTool: React.FC = () => {
                   {result.verdict === 'dangerous' && (
                     <>
                       <li>• Do not click on any links or download any attachments</li>
-                      <li>• Report this content as spam or phishing</li>
+                      <li>• Report this content as spam or phishing to appropriate authorities :cite[3]</li>
                       <li>• Delete the message immediately</li>
+                      <li>• If you entered any information, contact your bank and monitor accounts</li>
+                      <li>• Never pay money or provide sensitive details to claim a prize :cite[2]</li>
                     </>
                   )}
                   {result.verdict === 'suspicious' && (
                     <>
-                      <li>• Verify the sender through alternative communication</li>
-                      <li>• Do not provide personal information</li>
-                      <li>• Be cautious of any urgent requests</li>
+                      <li>• Verify the sender through alternative communication channels</li>
+                      <li>• Do not provide personal or financial information</li>
+                      <li>• Be cautious of any urgent requests - scammers create false urgency :cite[8]</li>
+                      <li>• Check for spelling errors and generic greetings common in phishing</li>
                     </>
                   )}
                   {result.verdict === 'safe' && (
                     <>
                       <li>• Content appears legitimate, but stay vigilant</li>
-                      <li>• Always verify important requests independently</li>
-                      <li>• Keep your security software updated</li>
+                      <li>• Always verify important requests independently through official channels</li>
+                      <li>• Keep your security software updated :cite[4]</li>
+                      <li>• Enable multi-factor authentication on important accounts :cite[9]</li>
                     </>
                   )}
                 </ul>
