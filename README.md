@@ -59,16 +59,6 @@ Learn about:
 - Digital Footprints
 - Data Protection
 
----
-
-## 📊 Platform Statistics
-
-- **50K+ Users Protected**
-- **1M+ Scams Detected**
-- **25+ Countries Served**
-- **15K+ Certificates Earned**
-
----
 
 ## 🚀 Tech Stack
 
